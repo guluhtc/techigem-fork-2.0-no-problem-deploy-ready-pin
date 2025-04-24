@@ -72,14 +72,6 @@ function LoginForm() {
   const handleInstagramLogin = async () => {
     setIsInstagramLoading(true)
     try {
-      // Check if user is authenticated
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        toast.error('Please sign in to continue')
-        return
-      }
-
       const authUrl = InstagramBusinessAuth.getAuthUrl()
       window.location.href = authUrl
     } catch (error) {

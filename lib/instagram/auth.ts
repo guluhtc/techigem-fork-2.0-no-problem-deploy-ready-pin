@@ -10,9 +10,10 @@ export class InstagramBusinessAuth {
   private static readonly LONG_LIVED_TOKEN_URL = 'https://graph.instagram.com/access_token'
 
   static getAuthUrl(): string {
+    const redirectUri = 'https://techigem.com/api/auth/instagram/callback'
     const params = new URLSearchParams({
       client_id: process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID!,
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/instagram/callback`,
+      redirect_uri: redirectUri,
       response_type: 'code',
       scope: [
         'instagram_business_basic',
@@ -33,11 +34,12 @@ export class InstagramBusinessAuth {
     access_token: string;
     user_id: string;
   }> {
+    const redirectUri = 'https://techigem.com/api/auth/instagram/callback'
     const formData = new URLSearchParams({
       client_id: process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID!,
       client_secret: process.env.INSTAGRAM_APP_SECRET!,
       grant_type: 'authorization_code',
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/instagram/callback`,
+      redirect_uri: redirectUri,
       code,
     })
 
