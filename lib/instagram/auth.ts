@@ -11,8 +11,7 @@ export class InstagramBusinessAuth {
   private static readonly ACCESS_TOKEN = 'IGAAJA0gG176lBZAE1BZAGRyZAXFNa1g5M0xGNmVlQWRJUHR0X1VWZAjFrd0g2N3JZASFkydE9KOUpHQ3hSQWw3cG5idERTZAGh0X181cVNKd2w5ZADBXMFc2WWh3VmFndXFXWjhseUdPVUkzZA0d4dXZAUMjVLakVaYm1nZAnZARNHlrcDFFSQZDZD'
 
   static getAuthUrl(): string {
-    // Since we're using a direct access token, we'll redirect to the callback immediately
-    return '/api/auth/instagram/callback'
+    return 'https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=634220669431721&redirect_uri=https://techigem.com/api/auth/instagram/callback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights'
   }
 
   static async getBusinessProfile(accessToken: string): Promise<any> {
