@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { AdminHeader } from '@/components/admin/header'
 
 export default async function AdminLayout({
   children,
@@ -39,13 +40,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="py-10">
-        <header>
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900">
-              Admin Dashboard
-            </h1>
-          </div>
-        </header>
+        <AdminHeader />
         <main>
           <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
             {children}
