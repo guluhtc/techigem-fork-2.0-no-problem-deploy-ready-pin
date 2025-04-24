@@ -8,6 +8,7 @@ import { PostScheduler } from '@/components/dashboard/post-scheduler'
 import { AnalyticsSection } from '@/components/dashboard/analytics'
 import { HashtagSuggestions } from '@/components/dashboard/hashtag-suggestions'
 import { AiTools } from '@/components/dashboard/ai-tools'
+import { InstagramProfile } from '@/components/dashboard/instagram-profile'
 
 interface User {
   id: string;
@@ -42,6 +43,8 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-8"
       >
+        <InstagramProfile />
+        
         <DashboardStats />
         
         <AiTools />
