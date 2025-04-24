@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { InstagramBusinessAuth } from '@/lib/instagram/auth'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { INSTAGRAM_CONFIG } from '@/lib/instagram/config'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,10 +53,10 @@ export async function GET(request: Request) {
     try {
       // Exchange code for token
       const formData = new URLSearchParams({
-        client_id: '634220669431721',
-        client_secret: '7205c5fd1d1c00a5ebbe5b67ecd01d4a',
+        client_id: INSTAGRAM_CONFIG.clientId,
+        client_secret: INSTAGRAM_CONFIG.clientSecret,
         grant_type: 'authorization_code',
-        redirect_uri: 'https://techigem.com/api/auth/instagram/callback',
+        redirect_uri: INSTAGRAM_CONFIG.redirectUri,
         code,
       })
 
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
 
       // Get long-lived token
       const longLivedTokenResponse = await fetch(
-        `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=7205c5fd1d1c00a5ebbe5b67ecd01d4a&access_token=${tokenData.access_token}`
+        `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${INSTAGRAM_CONFIG.clientSecret}&access_token=${tokenData.access_token}`
       )
 
       if (!longLivedTokenResponse.ok) {
@@ -199,14 +199,16 @@ export async function GET(request: Request) {
         .upsert({
           user_id: userId,
           access_token: longLivedTokenData.access_token,
-          token_type: longLivedTokenData.token_type,
-          expires_at: new Date(Date.now() + (longLivedTokenData.expires_in * 1000)).toISOString(),
-          scope: ['instagram_business_basic']
+          token_type: 'bearer',
+          expires_at: new Date(Date.now() + longLivedTokenData.expires_in * 1000).toISOString(),
+          scope: INSTAGRAM_CONFIG.scopes.split(','),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
 
       if (sessionError) {
-        console.error('Error storing session:', sessionError)
-        return NextResponse.redirect(new URL('/login?error=session_creation_failed', 'https://techigem.com'))
+        console.error('Error storing Instagram session:', sessionError)
+        return NextResponse.redirect(new URL('/login?error=session_storage_failed', 'https://techigem.com'))
       }
 
       // Sign in the user
@@ -220,22 +222,13 @@ export async function GET(request: Request) {
         return NextResponse.redirect(new URL('/login?error=sign_in_failed', 'https://techigem.com'))
       }
 
-      // Redirect to dashboard with session data
-      const redirectUrl = new URL(next, 'https://techigem.com')
-      redirectUrl.searchParams.set('session', JSON.stringify({
-        access_token: longLivedTokenData.access_token,
-        expires_in: longLivedTokenData.expires_in,
-        scope: ['instagram_business_basic'],
-        profile: profileData
-      }))
-      return NextResponse.redirect(redirectUrl)
-    } catch (error: any) {
-      console.error('Instagram auth error:', error)
-      const errorMessage = encodeURIComponent(error.message || 'unknown')
-      return NextResponse.redirect(new URL(`/login?error=${errorMessage}`, 'https://techigem.com'))
+      return NextResponse.redirect(new URL(next, 'https://techigem.com'))
+    } catch (error) {
+      console.error('Instagram callback error:', error)
+      return NextResponse.redirect(new URL('/login?error=internal_error', 'https://techigem.com'))
     }
   } catch (error) {
     console.error('Instagram callback error:', error)
-    return NextResponse.redirect(new URL('/login?error=unknown', 'https://techigem.com'))
+    return NextResponse.redirect(new URL('/login?error=internal_error', 'https://techigem.com'))
   }
 }
