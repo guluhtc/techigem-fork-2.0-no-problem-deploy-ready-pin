@@ -6,89 +6,52 @@ import { supabase } from '@/lib/supabase'
 import { Loader2, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const [isLoading, setIsLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const router = useRouter()
+  const supabase = createServerComponentClient({ cookies })
 
-  const checkAdmin = useCallback(async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-        return
-      }
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
-      const { data: user } = await supabase
-        .from('users')
-        .select('role')
-        .eq('email', session.user.email)
-        .maybeSingle()
-
-      if (!user || user.role !== 'admin') {
-        router.push('/')
-        return
-      }
-
-      setIsAdmin(true)
-    } catch (error) {
-      console.error('Error checking admin status:', error)
-      router.push('/')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [router])
-
-  useEffect(() => {
-    checkAdmin()
-  }, [checkAdmin])
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut()
-      router.push('/login')
-      toast.success('Signed out successfully')
-    } catch (error) {
-      console.error('Error signing out:', error)
-      toast.error('Failed to sign out')
-    }
+  if (!session) {
+    redirect('/login?returnTo=/admin')
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
+  // Check if user is admin
+  const { data: user } = await supabase
+    .from('users')
+    .select('role')
+    .eq('email', session.user.email || '')
+    .maybeSingle()
 
-  if (!isAdmin) {
-    return null
+  if (!user || user.role !== 'admin') {
+    redirect('/')
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between">
-          <h1 className="text-xl font-semibold">Admin Dashboard</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSignOut}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
-        </div>
-      </header>
-      <main>
-        {children}
-      </main>
+      <div className="py-10">
+        <header>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900">
+              Admin Dashboard
+            </h1>
+          </div>
+        </header>
+        <main>
+          <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
