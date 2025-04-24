@@ -27,7 +27,20 @@ export async function GET(request: Request) {
       )
     }
 
-    if (!code || !state) {
+    // Verify state parameter
+    if (!state) {
+      console.error('No state parameter provided')
+      return NextResponse.redirect(new URL('/login?error=invalid_request', 'https://techigem.com'))
+    }
+
+    // Get the stored state from the request headers
+    const storedState = request.headers.get('x-instagram-auth-state')
+    if (!storedState || storedState !== state) {
+      console.error('Invalid state parameter')
+      return NextResponse.redirect(new URL('/login?error=invalid_state', 'https://techigem.com'))
+    }
+
+    if (!code) {
       return NextResponse.redirect(new URL('/login?error=invalid_request', 'https://techigem.com'))
     }
 

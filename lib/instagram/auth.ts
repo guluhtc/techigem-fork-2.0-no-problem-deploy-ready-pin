@@ -11,12 +11,36 @@ export class InstagramBusinessAuth {
   private static readonly ACCESS_TOKEN = 'IGAAJA0gG176lBZAE1BZAGRyZAXFNa1g5M0xGNmVlQWRJUHR0X1VWZAjFrd0g2N3JZASFkydE9KOUpHQ3hSQWw3cG5idERTZAGh0X181cVNKd2w5ZADBXMFc2WWh3VmFndXFXWjhseUdPVUkzZA0d4dXZAUMjVLakVaYm1nZAnZARNHlrcDFFSQZDZD'
 
   static getAuthUrl(): string {
-    return 'https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=634220669431721&redirect_uri=https://techigem.com/api/auth/instagram/callback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights'
+    // Generate a random state parameter
+    const state = crypto.randomUUID()
+    
+    // Store the state in localStorage for verification
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('instagram_auth_state', state)
+    }
+
+    const params = new URLSearchParams({
+      client_id: '634220669431721',
+      redirect_uri: 'https://techigem.com/api/auth/instagram/callback',
+      response_type: 'code',
+      scope: [
+        'instagram_business_basic',
+        'instagram_business_manage_messages',
+        'instagram_business_manage_comments',
+        'instagram_business_content_publish',
+        'instagram_business_manage_insights'
+      ].join(','),
+      state,
+      enable_fb_login: '0',
+      force_authentication: '1'
+    })
+
+    return `${this.AUTH_URL}?${params.toString()}`
   }
 
   static async getBusinessProfile(accessToken: string): Promise<any> {
     const response = await fetch(
-      `${this.GRAPH_API_URL}/me?fields=id,username,name,profile_picture_url,account_type,media_count,followers_count,follows_count,website,biography&access_token=${this.ACCESS_TOKEN}`
+      `${this.GRAPH_API_URL}/me?fields=id,username,name,profile_picture_url,account_type,media_count,followers_count,follows_count,website,biography&access_token=${accessToken}`
     )
 
     if (!response.ok) {
@@ -41,8 +65,8 @@ export class InstagramBusinessAuth {
       .from('instagram_auth_sessions')
       .upsert({
         user_id: userId,
-        access_token: this.ACCESS_TOKEN,
-        expires_at: new Date(Date.now() + (60 * 24 * 60 * 60 * 1000)).toISOString(), // 60 days from now
+        access_token: data.access_token,
+        expires_at: new Date(Date.now() + (data.expires_in * 1000)).toISOString(),
         scope: data.scope
       })
 
