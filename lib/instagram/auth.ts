@@ -1,5 +1,6 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/types/supabase'
+import { cookies } from 'next/headers'
 
 const supabase = createClientComponentClient<Database>()
 
@@ -14,10 +15,8 @@ export class InstagramBusinessAuth {
     // Generate a random state parameter
     const state = crypto.randomUUID()
     
-    // Store the state in localStorage for verification
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('instagram_auth_state', state)
-    }
+    // Store the state in a cookie
+    document.cookie = `instagram_auth_state=${state}; path=/; max-age=3600; SameSite=Lax`
 
     const params = new URLSearchParams({
       client_id: '634220669431721',

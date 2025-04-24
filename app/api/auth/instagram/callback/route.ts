@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { InstagramBusinessAuth } from '@/lib/instagram/auth'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,12 +34,17 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL('/login?error=invalid_request', 'https://techigem.com'))
     }
 
-    // Get the stored state from the request headers
-    const storedState = request.headers.get('x-instagram-auth-state')
+    // Get the stored state from cookies
+    const cookieStore = cookies()
+    const storedState = cookieStore.get('instagram_auth_state')?.value
+
     if (!storedState || storedState !== state) {
-      console.error('Invalid state parameter')
+      console.error('Invalid state parameter', { storedState, state })
       return NextResponse.redirect(new URL('/login?error=invalid_state', 'https://techigem.com'))
     }
+
+    // Clear the state cookie
+    cookieStore.delete('instagram_auth_state')
 
     if (!code) {
       return NextResponse.redirect(new URL('/login?error=invalid_request', 'https://techigem.com'))
