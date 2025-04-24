@@ -126,14 +126,16 @@ export async function GET(request: Request) {
 
         userPassword = userData.user_metadata.password
       } else {
-        // Create new user
+        // Create new user with a random password
+        const randomPassword = crypto.randomUUID()
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: `${profileData.username}@instagram.user`,
-          password: crypto.randomUUID(),
+          password: randomPassword,
           options: {
             data: {
               instagram_id: profileData.id,
-              instagram_username: profileData.username
+              instagram_username: profileData.username,
+              password: randomPassword // Store password in metadata for later use
             }
           }
         })
@@ -149,7 +151,22 @@ export async function GET(request: Request) {
         }
 
         userId = authData.user.id
-        userPassword = authData.user.user_metadata.password
+        userPassword = randomPassword
+
+        // Create initial user record
+        const { error: createError } = await supabase
+          .from('users')
+          .insert({
+            id: userId,
+            email: `${profileData.username}@instagram.user`,
+            role: 'user',
+            created_at: new Date().toISOString()
+          })
+
+        if (createError) {
+          console.error('Error creating user record:', createError)
+          return NextResponse.redirect(new URL('/login?error=user_record_creation_failed', 'https://techigem.com'))
+        }
       }
 
       // Update user profile with Instagram data
