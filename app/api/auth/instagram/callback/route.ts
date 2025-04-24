@@ -41,10 +41,27 @@ export async function GET(request: Request) {
       // Get profile data
       const profileData = await InstagramBusinessAuth.getBusinessProfile(longLivedTokenData.access_token)
 
-      // Create or update user in Supabase
-      const { data: user, error: userError } = await supabase
+      // First, create a new user in Supabase
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: `${profileData.username}@instagram.user`,
+        password: crypto.randomUUID(),
+        options: {
+          data: {
+            instagram_id: profileData.id,
+            instagram_username: profileData.username
+          }
+        }
+      })
+
+      if (authError || !authData.user) {
+        console.error('Error creating user:', authError)
+        return NextResponse.redirect(new URL('/login?error=user_creation_failed', 'https://techigem.com'))
+      }
+
+      // Then update the user profile with Instagram data
+      const { error: updateError } = await supabase
         .from('users')
-        .upsert({
+        .update({
           instagram_id: profileData.id,
           instagram_username: profileData.username,
           instagram_full_name: profileData.name,
@@ -58,19 +75,18 @@ export async function GET(request: Request) {
           instagram_is_business: true,
           instagram_connected_at: new Date().toISOString()
         })
-        .select()
-        .single()
+        .eq('id', authData.user.id)
 
-      if (userError) {
-        console.error('Error storing user data:', userError)
-        return NextResponse.redirect(new URL('/login?error=user_creation_failed', 'https://techigem.com'))
+      if (updateError) {
+        console.error('Error updating user profile:', updateError)
+        return NextResponse.redirect(new URL('/login?error=profile_update_failed', 'https://techigem.com'))
       }
 
       // Store Instagram session
       const { error: sessionError } = await supabase
         .from('instagram_auth_sessions')
         .upsert({
-          user_id: user.id,
+          user_id: authData.user.id,
           access_token: longLivedTokenData.access_token,
           token_type: longLivedTokenData.token_type,
           expires_at: new Date(Date.now() + (longLivedTokenData.expires_in * 1000)).toISOString(),
