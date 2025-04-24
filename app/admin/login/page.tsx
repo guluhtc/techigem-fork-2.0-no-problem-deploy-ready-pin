@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("role")
-        .eq("email", email as User["email"])
+        .eq("email", email as Database["public"]["Tables"]["users"]["Row"]["email"])
         .maybeSingle() as { data: UserRole | null, error: any }
 
       if (userError) {
