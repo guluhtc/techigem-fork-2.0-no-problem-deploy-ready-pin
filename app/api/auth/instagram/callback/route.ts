@@ -43,54 +43,33 @@ export async function GET(request: Request) {
 
       console.log('Instagram profile data:', profileData)
 
-      // First, check if user already exists
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('instagram_id', profileData.id)
-        .single()
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking existing user:', checkError)
-        return NextResponse.redirect(new URL('/login?error=user_check_failed', 'https://techigem.com'))
-      }
-
-      let userId: string
-
-      if (existingUser) {
-        // User exists, use their ID
-        userId = existingUser.id
-      } else {
-        // Create new user
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: `${profileData.username}@instagram.user`,
-          password: crypto.randomUUID(),
-          options: {
-            data: {
-              instagram_id: profileData.id,
-              instagram_username: profileData.username
-            }
+      // Create a new user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: `${profileData.username}@instagram.user`,
+        password: crypto.randomUUID(),
+        options: {
+          data: {
+            instagram_id: profileData.id,
+            instagram_username: profileData.username
           }
-        })
-
-        if (authError) {
-          console.error('Error creating user:', authError)
-          return NextResponse.redirect(new URL('/login?error=user_creation_failed', 'https://techigem.com'))
         }
+      })
 
-        if (!authData.user) {
-          console.error('No user data returned from signUp')
-          return NextResponse.redirect(new URL('/login?error=no_user_data', 'https://techigem.com'))
-        }
-
-        userId = authData.user.id
+      if (authError) {
+        console.error('Error creating user:', authError)
+        return NextResponse.redirect(new URL('/login?error=user_creation_failed', 'https://techigem.com'))
       }
 
-      // Update user profile with Instagram data
-      const { error: updateError } = await supabase
+      if (!authData.user) {
+        console.error('No user data returned from signUp')
+        return NextResponse.redirect(new URL('/login?error=no_user_data', 'https://techigem.com'))
+      }
+
+      // Create user profile in users table
+      const { error: profileError } = await supabase
         .from('users')
-        .upsert({
-          id: userId,
+        .insert({
+          id: authData.user.id,
           instagram_id: profileData.id,
           instagram_username: profileData.username,
           instagram_full_name: profileData.name,
@@ -105,16 +84,16 @@ export async function GET(request: Request) {
           instagram_connected_at: new Date().toISOString()
         })
 
-      if (updateError) {
-        console.error('Error updating user profile:', updateError)
-        return NextResponse.redirect(new URL('/login?error=profile_update_failed', 'https://techigem.com'))
+      if (profileError) {
+        console.error('Error creating user profile:', profileError)
+        return NextResponse.redirect(new URL('/login?error=profile_creation_failed', 'https://techigem.com'))
       }
 
       // Store Instagram session
       const { error: sessionError } = await supabase
         .from('instagram_auth_sessions')
-        .upsert({
-          user_id: userId,
+        .insert({
+          user_id: authData.user.id,
           access_token: longLivedTokenData.access_token,
           token_type: longLivedTokenData.token_type,
           expires_at: new Date(Date.now() + (longLivedTokenData.expires_in * 1000)).toISOString(),
@@ -124,6 +103,17 @@ export async function GET(request: Request) {
       if (sessionError) {
         console.error('Error storing session:', sessionError)
         return NextResponse.redirect(new URL('/login?error=session_creation_failed', 'https://techigem.com'))
+      }
+
+      // Sign in the user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: `${profileData.username}@instagram.user`,
+        password: authData.user.user_metadata.password
+      })
+
+      if (signInError) {
+        console.error('Error signing in user:', signInError)
+        return NextResponse.redirect(new URL('/login?error=sign_in_failed', 'https://techigem.com'))
       }
 
       // Redirect to dashboard with session data
