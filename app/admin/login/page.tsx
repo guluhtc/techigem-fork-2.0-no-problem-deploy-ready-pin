@@ -9,6 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import type { Database } from "@/types/supabase"
+
+type User = Database["public"]["Tables"]["users"]["Row"]
+type UserRole = Pick<User, "role">
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
@@ -34,8 +38,8 @@ export default function AdminLoginPage() {
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("role")
-        .eq("email", email as string)
-        .maybeSingle()
+        .eq("email", email as User["email"])
+        .maybeSingle() as { data: UserRole | null, error: any }
 
       if (userError) {
         console.error("Error fetching user role:", userError)
