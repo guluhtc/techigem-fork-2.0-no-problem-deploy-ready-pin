@@ -1,11 +1,3 @@
-"use client"
-
-import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { Loader2, LogOut } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
