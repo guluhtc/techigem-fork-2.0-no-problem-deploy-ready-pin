@@ -88,10 +88,24 @@ export async function GET(request: Request) {
         .single()
 
       let userId: string
+      let userPassword: string
 
       if (existingUser) {
         // User exists, use their ID
         userId = existingUser.id
+        // Get the user's password from their metadata
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('user_metadata')
+          .eq('id', userId)
+          .single()
+
+        if (userError) {
+          console.error('Error getting user data:', userError)
+          return NextResponse.redirect(new URL('/login?error=user_data_failed', 'https://techigem.com'))
+        }
+
+        userPassword = userData.user_metadata.password
       } else {
         // Create new user
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -116,6 +130,7 @@ export async function GET(request: Request) {
         }
 
         userId = authData.user.id
+        userPassword = authData.user.user_metadata.password
       }
 
       // Update user profile with Instagram data
@@ -161,7 +176,7 @@ export async function GET(request: Request) {
       // Sign in the user
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: `${profileData.username}@instagram.user`,
-        password: authData.user.user_metadata.password
+        password: userPassword
       })
 
       if (signInError) {
