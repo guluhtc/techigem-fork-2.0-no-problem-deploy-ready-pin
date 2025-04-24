@@ -41,27 +41,56 @@ export async function GET(request: Request) {
       // Get profile data
       const profileData = await InstagramBusinessAuth.getBusinessProfile(longLivedTokenData.access_token)
 
-      // First, create a new user in Supabase
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: `${profileData.username}@instagram.user`,
-        password: crypto.randomUUID(),
-        options: {
-          data: {
-            instagram_id: profileData.id,
-            instagram_username: profileData.username
-          }
-        }
-      })
+      console.log('Instagram profile data:', profileData)
 
-      if (authError || !authData.user) {
-        console.error('Error creating user:', authError)
-        return NextResponse.redirect(new URL('/login?error=user_creation_failed', 'https://techigem.com'))
+      // First, check if user already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('instagram_id', profileData.id)
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing user:', checkError)
+        return NextResponse.redirect(new URL('/login?error=user_check_failed', 'https://techigem.com'))
       }
 
-      // Then update the user profile with Instagram data
+      let userId: string
+
+      if (existingUser) {
+        // User exists, use their ID
+        userId = existingUser.id
+      } else {
+        // Create new user
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: `${profileData.username}@instagram.user`,
+          password: crypto.randomUUID(),
+          options: {
+            data: {
+              instagram_id: profileData.id,
+              instagram_username: profileData.username
+            }
+          }
+        })
+
+        if (authError) {
+          console.error('Error creating user:', authError)
+          return NextResponse.redirect(new URL('/login?error=user_creation_failed', 'https://techigem.com'))
+        }
+
+        if (!authData.user) {
+          console.error('No user data returned from signUp')
+          return NextResponse.redirect(new URL('/login?error=no_user_data', 'https://techigem.com'))
+        }
+
+        userId = authData.user.id
+      }
+
+      // Update user profile with Instagram data
       const { error: updateError } = await supabase
         .from('users')
-        .update({
+        .upsert({
+          id: userId,
           instagram_id: profileData.id,
           instagram_username: profileData.username,
           instagram_full_name: profileData.name,
@@ -75,7 +104,6 @@ export async function GET(request: Request) {
           instagram_is_business: true,
           instagram_connected_at: new Date().toISOString()
         })
-        .eq('id', authData.user.id)
 
       if (updateError) {
         console.error('Error updating user profile:', updateError)
@@ -86,7 +114,7 @@ export async function GET(request: Request) {
       const { error: sessionError } = await supabase
         .from('instagram_auth_sessions')
         .upsert({
-          user_id: authData.user.id,
+          user_id: userId,
           access_token: longLivedTokenData.access_token,
           token_type: longLivedTokenData.token_type,
           expires_at: new Date(Date.now() + (longLivedTokenData.expires_in * 1000)).toISOString(),
