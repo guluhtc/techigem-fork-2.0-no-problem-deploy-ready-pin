@@ -7,39 +7,18 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+const INSTAGRAM_ACCESS_TOKEN = 'IGAAJA0gG176lBZAE1BZAGRyZAXFNa1g5M0xGNmVlQWRJUHR0X1VWZAjFrd0g2N3JZASFkydE9KOUpHQ3hSQWw3cG5idERTZAGh0X181cVNKd2w5ZADBXMFc2WWh3VmFndXFXWjhseUdPVUkzZA0d4dXZAUMjVLakVaYm1nZAnZARNHlrcDFFSQZDZD'
+
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const code = searchParams.get('code')
-    const error = searchParams.get('error')
-    const error_reason = searchParams.get('error_reason')
-    const error_description = searchParams.get('error_description')
-    const state = searchParams.get('state')
     const next = searchParams.get('next') || '/dashboard'
 
-    // Handle OAuth errors
-    if (error) {
-      console.error('Instagram OAuth error:', { error, error_reason, error_description })
-      return NextResponse.redirect(
-        new URL(`/login?error=${error}&reason=${error_reason}&description=${error_description}`, 'https://techigem.com')
-      )
-    }
-
-    if (!code || !state) {
-      return NextResponse.redirect(new URL('/login?error=invalid_request', 'https://techigem.com'))
-    }
-
     try {
-      // Exchange code for token
-      const tokenData = await InstagramBusinessAuth.exchangeCodeForToken(code)
-      
-      // Get long-lived token
-      const longLivedTokenData = await InstagramBusinessAuth.getLongLivedToken(tokenData.access_token)
-      
-      // Get profile data
-      const profileData = await InstagramBusinessAuth.getBusinessProfile(longLivedTokenData.access_token)
+      // Get profile data using the provided access token
+      const profileData = await InstagramBusinessAuth.getBusinessProfile(INSTAGRAM_ACCESS_TOKEN)
 
       console.log('Instagram profile data:', profileData)
 
@@ -94,9 +73,9 @@ export async function GET(request: Request) {
         .from('instagram_auth_sessions')
         .insert({
           user_id: authData.user.id,
-          access_token: longLivedTokenData.access_token,
-          token_type: longLivedTokenData.token_type,
-          expires_at: new Date(Date.now() + (longLivedTokenData.expires_in * 1000)).toISOString(),
+          access_token: INSTAGRAM_ACCESS_TOKEN,
+          token_type: 'Bearer',
+          expires_at: new Date(Date.now() + (60 * 24 * 60 * 60 * 1000)).toISOString(), // 60 days from now
           scope: ['instagram_business_basic']
         })
 
@@ -119,8 +98,8 @@ export async function GET(request: Request) {
       // Redirect to dashboard with session data
       const redirectUrl = new URL(next, 'https://techigem.com')
       redirectUrl.searchParams.set('session', JSON.stringify({
-        access_token: longLivedTokenData.access_token,
-        expires_in: longLivedTokenData.expires_in,
+        access_token: INSTAGRAM_ACCESS_TOKEN,
+        expires_in: 60 * 24 * 60 * 60, // 60 days in seconds
         scope: ['instagram_business_basic'],
         profile: profileData
       }))
